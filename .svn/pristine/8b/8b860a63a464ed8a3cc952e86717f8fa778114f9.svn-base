@@ -1,0 +1,230 @@
+import java.io.*;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Map;
+import java.util.Properties;
+
+/**
+ * @author qiyulin  @date 2019.06.17
+ * **/
+public class IOTServer {
+
+    public static  void main( String args[]){
+        new IOTServer().start();//启动
+    }
+
+    private static String port = "9092";
+    private static String path = "";
+    static{
+        Properties pro = new Properties();
+        try {
+            pro.load(IOTServer.class.getClassLoader().getResourceAsStream("config.properties"));
+            port = pro.getProperty("PORT");
+            path = pro.getProperty("LOG");
+        } catch (IOException e) {}
+    }
+
+    //start
+    public void start(){
+        final SocketServer server = new SocketServer(Integer.parseInt(port), new MessageHandler() {
+            @Override
+            public void onReceive(Connection connection, String message) {
+                log("Got a message from a client:");
+                log(message);
+                report(message.getBytes());
+                /* recover
+                log("Send 'receive' back to the client.");
+                connection.println("receive");
+                */
+            }
+        });
+        log("waiting client connect ..."+port);
+        //show log
+        while(true){
+            log(server.showLog());
+            try {
+                Thread.sleep(60000);
+            }catch (Exception e){
+                break;
+            }
+        }
+        //server.close();
+    }
+
+    //log record
+    public void log(String msg){
+        if(msg!=null&&!msg.equals("")){
+            String datetime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            msg = datetime+" : "+msg;
+            if(!"".equals(path)){
+                writeFile(path+File.separator+"log.html",msg+"\r\n",true);
+            }
+            System.out.println(msg);
+        }
+    }
+    //append file
+    private void writeFile(String fileFullPath,String content,boolean b) {
+        FileOutputStream fos = null;
+        try {
+            File f = new File(fileFullPath);
+            if(!f.exists()) f.createNewFile();//创建新文件
+            //wt
+            fos = new FileOutputStream(fileFullPath, b);
+            fos.write(content.getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }finally{
+            if(fos != null){
+                try {
+                    fos.flush();
+                    fos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    /**
+     * @param bytes 收到msg报文
+    原报文
+    EF BF BD EF BF BD 01 3E 0B EF BF BD EF BF BD EF BF BD EF BF BD 00 00 00 02 03 00 30 00 00 01 39 00 00 01 EF BF BD 00 00 00 EF BF BD 00 00 00 00 00 00 01 13 00 00 00 1B 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 EF BF BD 00 00 00 00 00 EF BF BD EF BF BD 01 3E 0B EF BF BD EF BF BD EF BF BD EF BF BD 00 00 00 04 03 00 30 00 00 01 39 00 00 01 EF BF BD 00 00 00 EF BF BD 00 00 00 00 00 00 01 13 00 00 00 1C 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 EF BF BD 00 00 00 00 00 EF BF BD EF BF BD 01 3E 0B EF BF BD EF BF BD EF BF BD EF BF BD 00 00 00 06 03 00 30 00 00 01 39 00 00 01 EF BF BD 00 00 00 EF BF BD 00 00 00 00 00 00 01 13 00 00 00 1D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 EF BF BD 00 00 00 00 00 EF BF BD EF BF BD 01 3E 0B EF BF BD EF BF BD EF BF BD EF BF BD 00 00 00 08 03 00 30 00 00 01 39 00 00 01 EF BF BD 00 00 00 EF BF BD 00 00 00 00 00 00 01 13 00 00 00 1D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 EF BF BD 00 00 00 00 00 EF BF BD EF BF BD 01 3E 0B EF BF BD EF BF BD EF BF BD EF BF BD 00 00 00
+
+    转化后报文
+    EF EF 01 3E 0B EF EF EF EF 00 00 00 02
+    03 00 30
+    00 00 01 39
+    00 00 01 EF
+    00 00 00 EF
+    00 00 00 00
+    00 00 01 13
+    00 00 00 1B
+    00 00 00 00
+    00 00 00 00
+    00 00 00 00
+    00 00 00 00
+    00 00 01 EF
+    00 00 00 00
+    00
+
+    EF EF 01 3E 0B EF EF EF EF 00 00 00 04 03 00 30 00 00 01 39 00 00 01 EF 00 00 00 EF 00 00 00 00 00 00 01 13 00 00 00 1C 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 EF 00 00 00 00 00
+    EF EF 01 3E 0B EF EF EF EF 00 00 00 06 03 00 30 00 00 01 39 00 00 01 EF 00 00 00 EF 00 00 00 00 00 00 01 13 00 00 00 1D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 EF 00 00 00 00 00
+    EF EF 01 3E 0B EF EF EF EF 00 00 00 08 03 00 30 00 00 01 39 00 00 01 EF 00 00 00 EF 00 00 00 00 00 00 01 13 00 00 00 1D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 EF 00 00 00 00 00
+    EF EF 01 3E 0B EF EF EF EF 00 00 00
+
+     * 报文分析
+     * EFEF01  为协议头 6位
+     * EF EF 01 3E 0B EF EF EF EF 为设备id 12位
+     * 00 00 00 02  SESSIONID  8位
+     * 03 数据报头  2位
+     * 00 30 数据字节长度  48字节 也就是说后边截取48位为数据   4位
+     *              -----32位-----
+     * 00 00 01 39 为温度，转10进制为313，每个单位代表0.1℃，则温度为      31.3℃      1
+     * 00 00 01 EF 为空气湿度，转10进制为495，每个单位代表0.1%RH，则湿度为  49.5%RH    2
+     * 00 00 00 EF 为光照强度，转10进制为239，每个单位代表239Lux，则光强为  239Lux     3
+     * 00 00 00 00 为PH，转10进制为0，每个代为代表0.1,则PH为0，                       4
+     * 00 00 01 13 为土壤温度，转10进制为275，每个单位代表0.1℃，则土壤温度为 27.5℃    5
+     * 00 00 00 1B 为土壤湿度，转10进制为27，每个单位代表0.1%RH, 则土壤湿度为 2.7%RH   6
+     * 00 00 00 00 为电导率，转10进制为0，每个单位代表1ug/cm，则电导率为      0ug/cm   7
+     * 00 00 00 00 为有效辐射，转10进制为0，每个单位代表1W/㎡，则辐射为       0W/㎡    8
+     * 00 00 00 00 为太阳总辐射，转10进制为0，每个单位代表1W/㎡，则总辐射为    0W/㎡    9
+     * 00 00 00 00 为紫外线，转10进制为0，每个单位代表1W/㎡，则紫外线为    0W/㎡        10
+     * 00 00 01 EF 为CO2浓度，转10进制为495，每个单位为1ppm,则CO2浓度为  495ppm        11
+     * 00 00 00 00 为雨量，转10进制为0，每个单位为1mm,则雨量为    0mm                  12
+     *
+     * 多余丢弃，无用！！！
+     * @return 返回封装map
+     * */
+    public Map<String,String> report(byte[] bytes){
+        String hex = byteToHex(bytes);
+        log("source->"+hex);
+        hex = hex.replaceAll("BFBD","");//trans
+        log("tran->"+hex);
+        if(hex!=null&&hex.startsWith("EFEF01")){
+            String datetime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            try {
+                String did = hex.substring(6,18); //did
+                String awd = hex.substring(32,40);//温度
+                String asd = hex.substring(40,48);//湿度
+                String sun = hex.substring(48,56);//光照强度
+                String ph = hex.substring(56,64);//ph
+                String lwd = hex.substring(64,72);//土壤温度
+                String lsd = hex.substring(72,80);//土壤湿度
+                String ddv = hex.substring(80,88);//电导率
+                String er = hex.substring(88,96);//有效辐射
+                String ar = hex.substring(96,104);//总辐射量
+                String uv = hex.substring(104,112);//紫外线
+                String co2 = hex.substring(112,120);//二氧化碳浓度
+                String rain = hex.substring(120,128);//降雨量
+                if(did!=null&&!did.equals("")){
+                    //判断
+                    awd = trans(awd,true);
+                    asd = trans(asd,true);
+                    sun = trans(sun,false);
+                    ph = trans(ph,true);
+                    lwd = trans(lwd,true);
+                    lsd = trans(lsd,true);
+                    ddv = trans(ddv,false);
+                    er = trans(er,false);
+                    ar = trans(ar,false);
+                    uv = trans(uv,false);
+                    co2 = trans(co2,false);
+                    rain = trans(rain,false);
+                    //json
+                    String json = "{\"datetime\":\""+datetime+"\"," +
+                            "\"did\":\""+did+"\"," +
+                            "\"awd\":\""+awd+"\"," +
+                            "\"asd\":\""+asd+"\"," +
+                            "\"sun\":\""+sun+"\"," +
+                            "\"ph\":\""+ph+"\"," +
+                            "\"lwd\":\""+lwd+"\"," +
+                            "\"lsd\":\""+lsd+"\"," +
+                            "\"ddv\":\""+ddv+"\"," +
+                            "\"er\":\""+er+"\"," +
+                            "\"ar\":\""+ar+"\"," +
+                            "\"uv\":\""+uv+"\"," +
+                            "\"co2\":\""+co2+"\"," +
+                            "\"rain\":\""+rain+"\"}";
+                    //输入到日志
+                    log(json);
+                    //写到json目录/did.json文件中
+                    writeJson(json,did);
+                }
+            }catch (Exception e){}
+        }
+        return null;
+    }
+
+    //16进制转具体值
+    private String trans(String info,boolean xs){
+        if(info==null||info.length()!=8) return "";
+        if(xs) return Long.parseLong(info,16)*0.1+""; //空气温度
+        return Long.parseLong(info,16)+"";
+    }
+
+
+
+    /**
+     * byte数组转hex
+     * @param bytes
+     * @return
+     */
+    public String byteToHex(byte[] bytes){
+        String strHex = "";
+        StringBuilder sb = new StringBuilder("");
+        for (int n = 0; n < bytes.length; n++) {
+            strHex = Integer.toHexString(bytes[n] & 0xFF);
+            sb.append((strHex.length() == 1) ? "0" + strHex : strHex);
+        }
+        return sb.toString().toUpperCase();
+    }
+
+    //json make
+    public void writeJson(String json,String id){
+        writeFile(path+File.separator+"json"+File.separator+id+".json",json,false);
+    }
+}

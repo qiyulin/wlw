@@ -1,0 +1,67 @@
+<%@ page import="java.io.*"%><%@ page contentType="application/json;charset=UTF-8" language="java" %>
+<%!
+//check队列
+synchronized private boolean checkDuiLie(String path,String did){
+     File file = new File(path);
+     try{
+        BufferedReader br  = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+        String str = null;
+        while((str=br.readLine())!=null){
+            System.out.println(str);
+            if(str.startsWith(did)) return true;
+        }
+     }catch (Exception e){}
+     return false;//不在队列
+}
+//out
+private void outJson(int status,HttpServletResponse response){
+    try{
+        PrintWriter pw = response.getWriter();
+        pw.print("{\"status\":"+status+"}");
+        pw.close();
+    }catch (Exception e){}
+}
+//write
+synchronized private void writeFile(String fileFullPath,String content,boolean b) {
+        FileOutputStream fos = null;
+        try {
+            File f = new File(fileFullPath);
+            if(!f.exists()) f.createNewFile();//创建新文件
+            //wt
+            fos = new FileOutputStream(fileFullPath, b);
+            fos.write(content.getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }finally{
+            if(fos != null){
+                try {
+                    fos.flush();
+                    fos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+ %>
+<%
+    String did = request.getParameter("did");//did
+    String cmd = request.getParameter("cmd");//cmd
+    //判断该ip是否在队列中有命令在执行
+    String path = request.getSession().getServletContext().getRealPath("/")+"wlw"+File.separator+"cmd.html";
+    String logpath = request.getSession().getServletContext().getRealPath("/")+"wlw"+File.separator+"log.html";
+    if(!checkDuiLie(path,did)){
+         //对哪个did，发送cmd
+        if(cmd!=null&&!cmd.equals("")&&did!=null&&!did.equals("")){
+           //把命令写到cmd.html队列中
+           String line = did+","+cmd;
+           writeFile(path,line,true);
+           writeFile(logpath,"Cmd queue ->"+line+"\t",true);
+           outJson(1,response);
+        }else{
+           outJson(0,response);
+        }
+    }else{
+        outJson(-1,response);
+    }
+%>

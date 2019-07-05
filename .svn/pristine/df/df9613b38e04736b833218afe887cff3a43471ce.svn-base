@@ -1,0 +1,24 @@
+
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
+/**
+ * @author  qiyulin @date 2019.06.17
+ * **/
+public class IOTClient{
+
+    public void connect(){
+        try {
+            SocketClient client = new SocketClient(InetAddress.getByName("localhost"), 9092);
+            client.println("Hello");
+            System.out.println("hello");
+
+            client.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    public static void main(String args[]){
+        new IOTClient().connect();
+    }
+}

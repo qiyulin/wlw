@@ -1,0 +1,61 @@
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.util.ArrayList;
+import java.util.Vector;
+
+public class SocketServer {
+    private ServerSocket serverSocket;
+    private ListeningThread listeningThread;
+    private MessageHandler messageHandler;
+
+    public SocketServer(int port, MessageHandler handler) {
+        messageHandler = handler;
+        try {
+            serverSocket = new ServerSocket(port);
+            listeningThread = new ListeningThread(this, serverSocket);
+            listeningThread.start();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+    
+    public void setMessageHandler(MessageHandler handler) {
+        messageHandler = handler;
+    }
+
+    public MessageHandler getMessageHandler() {
+        return messageHandler;
+    }
+    
+    /*
+     * Ready for use.
+     */
+    public void close() {
+        try {
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                listeningThread.stopRunning();
+                listeningThread.suspend();
+                listeningThread.stop();
+
+                serverSocket.close();
+            }
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+    /**
+     * 显示登陆的socket和未使用的socket
+     * */
+    public String showLog(){
+        Vector<ConnectionThread> cons= listeningThread.getConnectionThreads();
+        StringBuilder sb = new StringBuilder();
+        sb.append("connect size："+cons.size()+" -> ");
+        for(ConnectionThread c : cons ){
+            String host = c.getSocket().getInetAddress().getHostAddress();
+            sb.append("thread："+c.getName()+",socket："+host+".");
+        }
+        return sb.toString();
+    }
+}

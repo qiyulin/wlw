@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="wlw2:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/wlw2_jar</output-path>
+    <root id="archive" name="wlw2.jar">
+      <element id="module-output" name="wlw2" />
+    </root>
+  </artifact>
+</component>
